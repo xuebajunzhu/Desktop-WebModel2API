@@ -1,0 +1,22 @@
+name: tiangong
+type: web
+base_url: https://tiangong.cn
+login_detection: ".user-profile"
+input_selector: "textarea[placeholder*='输入']"
+send_button: "button.send-btn"
+response_container: ".answer-item:last-child .content"
+stream_detection: dom_mutation
+pre_actions:
+  - clear_input
+features:
+  - text
+  - web_search
+  - code
+alternative_selectors:
+  response_container:
+    - ".response-content"
+    - ".ai-answer"
+notes: |
+  - Kunlun Wanwei's Tiangong AI
+  - Search results may be interleaved with references
+  - Recommended to preserve reference links

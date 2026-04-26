@@ -1,0 +1,22 @@
+name: hailuo
+type: web
+base_url: https://hailuoai.com
+login_detection: ".user-info"
+input_selector: "#chat-input"
+send_button: "button.send-btn"
+response_container: ".message-item:last-child .content"
+stream_detection: websocket
+pre_actions:
+  - clear_input
+features:
+  - text
+  - voice_synthesis
+  - role_play
+alternative_selectors:
+  input_selector:
+    - "textarea.input-box"
+    - "#input-area"
+notes: |
+  - Strong anti-automation detection
+  - Requires stealth mode and human-like interaction patterns
+  - MiniMax company's HaiLuo AI platform

@@ -1,13 +1,18 @@
 import crypto from 'crypto';
 import { getDatabase } from './database';
+import { encrypt, decrypt, generateSecureToken, hashValue } from '../security/encryption';
+import { RateLimiter, RateLimitConfig } from '../security/rate-limiter';
 
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
 
+// Rate limiter instance for API keys
+const rateLimiter = new RateLimiter();
+
 // Generate a machine-specific key for encryption
 function getEncryptionKey(): Buffer {
   // Use a combination of machine identifiers
-  const machineId = process.platform + '-' + process.arch + '-' + process.env.COMPUTERNAME || 'unknown';
+  const machineId = process.platform + '-' + process.arch + '-' + (process.env.COMPUTERNAME || 'unknown');
   return crypto.createHash('sha256').update(machineId).digest().slice(0, KEY_LENGTH);
 }
 
@@ -67,11 +72,11 @@ export interface ApiKeyInfo {
 }
 
 export function generateApiKey(): string {
-  return 'sk-web2api-' + crypto.randomBytes(24).toString('hex');
+  return generateSecureToken('sk-web2api');
 }
 
 export function hashApiKey(key: string): string {
-  return crypto.createHash('sha256').update(key).digest('hex');
+  return hashValue(key);
 }
 
 export async function createApiKey(name: string | null, options?: {
@@ -104,22 +109,66 @@ export async function createApiKey(name: string | null, options?: {
   };
 }
 
-export async function validateApiKey(key: string): Promise<boolean> {
+export async function validateApiKey(key: string): Promise<{ valid: boolean; error?: string; rateLimit?: { remaining: number; resetAt: number } }> {
   const db = getDatabase();
-  const keyHash = hashApiKey(key);
+  const keyHash = hashValue(key);
   
-  const stmt = db.prepare('SELECT id, revoked FROM api_keys WHERE key_hash = ?');
-  const result = stmt.get(keyHash) as { id: string; revoked: number } | undefined;
+  const stmt = db.prepare('SELECT id, revoked, allow_models, rate_limit_rpm, rate_limit_daily FROM api_keys WHERE key_hash = ?');
+  const result = stmt.get(keyHash) as { id: string; revoked: number; allow_models: string | null; rate_limit_rpm: number | null; rate_limit_daily: number | null } | undefined;
   
   if (!result || result.revoked === 1) {
-    return false;
+    return { valid: false, error: 'Invalid or revoked API key' };
+  }
+  
+  // Check rate limits
+  const rateLimitConfig: RateLimitConfig = {
+    rpm: result.rate_limit_rpm || undefined,
+    rpd: result.rate_limit_daily || undefined
+  };
+  
+  const rateLimitResult = rateLimiter.checkLimit(result.id, rateLimitConfig);
+  
+  if (!rateLimitResult.allowed) {
+    return { 
+      valid: false, 
+      error: 'Rate limit exceeded',
+      rateLimit: { remaining: rateLimitResult.remaining || 0, resetAt: rateLimitResult.resetAt || 0 }
+    };
   }
   
   // Update last_used_at
   const updateStmt = db.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?');
   updateStmt.run(Date.now(), result.id);
   
-  return true;
+  return { 
+    valid: true,
+    rateLimit: { remaining: rateLimitResult.remaining || 0, resetAt: rateLimitResult.resetAt || 0 }
+  };
+}
+
+/**
+ * Get allowed models for an API key
+ */
+export async function getAllowedModels(key: string): Promise<string[] | null> {
+  const db = getDatabase();
+  const keyHash = hashValue(key);
+  
+  const stmt = db.prepare('SELECT allow_models FROM api_keys WHERE key_hash = ? AND revoked = 0');
+  const result = stmt.get(keyHash) as { allow_models: string | null } | undefined;
+  
+  if (!result) {
+    return null;
+  }
+  
+  if (!result.allow_models) {
+    return []; // Empty means all models allowed
+  }
+  
+  try {
+    return JSON.parse(result.allow_models);
+  } catch {
+    return [];
+  }
 }
 
 export async function listApiKeys(): Promise<ApiKeyRecord[]> {

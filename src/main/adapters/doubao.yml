@@ -1,0 +1,18 @@
+name: doubao
+type: web
+base_url: https://www.doubao.com
+login_detection: ".logged-in"
+input_selector: "#flow-input-chat"
+send_button: "button[class*='send']"
+response_container: ".chat-item:last-child .user-info + div"
+stream_detection: dom_mutation
+pre_actions:
+  - clear_input
+features:
+  - text
+  - document
+  - image_generation
+notes: |
+  - Input may be nested in Shadow DOM
+  - Requires ByteDance account login
+  - Handle multiple input tabs carefully

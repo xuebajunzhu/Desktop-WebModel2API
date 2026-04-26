@@ -1,0 +1,17 @@
+name: nano
+type: web
+base_url: https://nano.tianrang.com
+login_detection: ".user-info"
+input_selector: "textarea.chat-input"
+send_button: "button.submit-btn"
+response_container: ".chat-history:last-child .ai-response"
+stream_detection: dom_mutation
+pre_actions:
+  - clear_input
+features:
+  - text
+  - search_enhanced
+notes: |
+  - Based on domestic Chinese models
+  - Search-enhanced responses
+  - Relatively simple DOM structure

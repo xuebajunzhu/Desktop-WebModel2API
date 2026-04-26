@@ -1,0 +1,22 @@
+name: yiyan
+type: web
+base_url: https://yiyan.baidu.com
+login_detection: ".user-info"
+input_selector: "textarea[placeholder*='输入']"
+send_button: "button[class*='send']"
+response_container: ".last-reply .content"
+stream_detection: dom_mutation
+pre_actions:
+  - clear_input
+features:
+  - text
+  - image_generation
+  - plugins
+alternative_selectors:
+  input_selector:
+    - "#chat-input"
+    - "textarea.editor"
+notes: |
+  - Baidu account required with strict login validation
+  - Session expires frequently, needs regular refresh
+  - Many plugin icons around input area - precise targeting needed
