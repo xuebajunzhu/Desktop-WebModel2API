@@ -1,0 +1,16 @@
+name: metaso
+type: web
+base_url: https://metaso.cn
+login_detection: ".user-info"
+input_selector: "input.search-input"
+send_button: "button.search-btn"
+response_container: ".result-item:first-child .summary"
+stream_detection: dom_mutation
+pre_actions: []
+features:
+  - search
+  - summary
+notes: |
+  - AI search engine - input is search-style
+  - Responses are summaries/lists
+  - Keep search abstracts or extract first paragraph as answer

@@ -14,7 +14,7 @@ const HOST = '127.0.0.1';
 
 app.use(express.json({ limit: '10mb' }));
 
-// Middleware for API key validation
+// Middleware for API key validation with rate limiting
 async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const apiKey = req.headers['authorization']?.replace('Bearer ', '') 
     || req.headers['x-api-key'] as string;
@@ -23,11 +23,23 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ error: 'Missing API key' });
   }
 
-  const valid = await validateApiKey(apiKey);
-  if (!valid) {
-    return res.status(403).json({ error: 'Invalid API key' });
+  const validationResult = await validateApiKey(apiKey);
+  
+  if (!validationResult.valid) {
+    if (validationResult.error?.includes('Rate limit')) {
+      res.setHeader('X-RateLimit-Remaining', '0');
+      res.setHeader('X-RateLimit-Reset', String(validationResult.rateLimit?.resetAt || 0));
+      return res.status(429).json({ error: validationResult.error });
+    }
+    return res.status(403).json({ error: validationResult.error || 'Invalid API key' });
   }
 
+  // Add rate limit headers
+  if (validationResult.rateLimit) {
+    res.setHeader('X-RateLimit-Remaining', String(validationResult.rateLimit.remaining));
+    res.setHeader('X-RateLimit-Reset', String(validationResult.rateLimit.resetAt));
+  }
+  
   (req as any).apiKey = apiKey;
   next();
 }

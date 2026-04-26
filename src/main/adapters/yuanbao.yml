@@ -1,0 +1,25 @@
+name: yuanbao
+type: web
+base_url: https://yuanbao.tencent.com
+login_detection: ".user-avatar"
+input_selector: "textarea[placeholder*='输入']"
+send_button: "i[class*='send']"
+response_container: ".message-row:last-child .bubble-content"
+stream_detection: dom_mutation
+pre_actions:
+  - clear_input
+features:
+  - text
+  - file_upload
+  - web_search
+alternative_selectors:
+  input_selector:
+    - "#chat-input"
+    - "textarea.send-input"
+  send_button:
+    - "button.send-btn"
+    - "div.send-icon"
+notes: |
+  - May show slider CAPTCHA on suspicious activity
+  - Uses Tencent HunYuan model
+  - Input area has multiple tabs for different features

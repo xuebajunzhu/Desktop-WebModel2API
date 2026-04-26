@@ -1,0 +1,16 @@
+name: wxiaobai
+type: web
+base_url: https://wxiaobai.com
+login_detection: ".logged-in"
+input_selector: "#input-box"
+send_button: ".send-button"
+response_container: ".reply-item:last-child .text"
+stream_detection: dom_mutation
+pre_actions:
+  - clear_input
+features:
+  - text
+notes: |
+  - Clean and simple interface
+  - Easy to adapt
+  - Lower anti-automation measures

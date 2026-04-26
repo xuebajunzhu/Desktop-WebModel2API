@@ -1,0 +1,23 @@
+name: boai
+type: web
+base_url: https://boai.com
+login_detection: ".user-avatar"
+input_selector: "#prompt-input"
+send_button: "[data-action='send']"
+response_container: ".message-bot:last-child .message-content"
+stream_detection: dom_mutation
+pre_actions:
+  - clear_input
+features:
+  - text
+alternative_selectors:
+  input_selector:
+    - "textarea.prompt"
+    - "#chat-prompt"
+  send_button:
+    - ".btn-send"
+    - "button[type='submit']"
+notes: |
+  - Smaller platform with frequent DOM changes
+  - Adapter needs more self-healing selectors
+  - Monitor for structural updates

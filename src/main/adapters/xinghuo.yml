@@ -1,0 +1,19 @@
+name: xinghuo
+type: web
+base_url: https://xinghuo.xfyun.cn
+login_detection: ".user-profile"
+input_selector: "textarea[placeholder*='输入']"
+send_button: "a[class*='send']"
+response_container: ".question-list:last-child .answer"
+stream_detection: dom_mutation
+pre_actions:
+  - clear_input
+features:
+  - text
+  - voice
+  - image
+  - virtual_human
+notes: |
+  - Some responses include voice playback components - filter these out
+  - Uses iFlytek Spark model
+  - May require phone verification for new accounts
