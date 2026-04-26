@@ -1,0 +1,31 @@
+name: claude-code
+type: cli
+executable: claude
+args_template: "-p \"{{prompt}}\" --output-format {{output_format}}"
+auth_env: ANTHROPIC_API_KEY
+supported_formats:
+  - json
+  - stream-json
+options:
+  allowed_tools:
+    description: "Comma-separated list of allowed tools"
+    default: "Read,Write,Bash,Grep"
+  max_turns:
+    description: "Maximum conversation turns"
+    default: 10
+  max_budget_usd:
+    description: "Maximum USD budget per request"
+    default: 0.50
+  bare_mode:
+    description: "Run in bare mode without interactive features"
+    default: false
+features:
+  - file_operations
+  - code_execution
+  - terminal_commands
+  - project_analysis
+notes: |
+  - Requires Claude Code CLI installed locally
+  - ANTHROPIC_API_KEY environment variable must be set
+  - Supports tool restriction for security
+  - Cost tracking available in response metadata

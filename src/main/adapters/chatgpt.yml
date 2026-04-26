@@ -1,0 +1,19 @@
+name: chatgpt
+type: web
+base_url: https://chat.openai.com
+login_detection: ".logged-in"
+input_selector: "#prompt-textarea"
+send_button: "button[data-testid='send-button']"
+response_container: ".markdown:last-of-type"
+stream_detection: intercept_websocket
+pre_actions:
+  - clear_input
+features:
+  - text
+  - code
+  - file_upload
+  - image_analysis
+notes: |
+  - Requires valid OpenAI account login
+  - Session cookies must be preserved
+  - May require CAPTCHA handling on suspicious activity

@@ -1,0 +1,22 @@
+name: glm
+type: web
+base_url: https://chatglm.cn
+login_detection: ".user-avatar"
+input_selector: "#user-input"
+send_button: "button[type='submit']"
+response_container: ".chat-item:last-child .assistant-message"
+stream_detection: intercept_sse
+pre_actions:
+  - clear_input
+features:
+  - text
+  - code
+  - file_upload
+  - image_analysis
+  - web_search
+  - code_execution
+notes: |
+  - Requires Zhipu AI account login
+  - Supports multi-modal inputs
+  - Web search and code execution features available
+  - Response may include suggested follow-up questions

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web2API Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0;
+      border-bottom: 1px solid #333;
+      margin-bottom: 30px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      color: #00d9ff;
+    }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: #16213e;
+      font-size: 14px;
+    }
+    
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4ade80;
+    }
+    
+    .status-dot.inactive {
+      background: #f59e0b;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .card {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 217, 255, 0.1);
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .model-type {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: #0f3460;
+      color: #00d9ff;
+    }
+    
+    .card-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #888;
+    }
+    
+    .card-status.available {
+      color: #4ade80;
+    }
+    
+    .card-status.busy {
+      color: #f59e0b;
+    }
+    
+    .card-status.error {
+      color: #ef4444;
+    }
+    
+    .section-title {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #00d9ff;
+    }
+    
+    .api-key-section {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .api-key-display {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    
+    .api-key-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #0f3460;
+      color: #eee;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .btn-primary {
+      background: #00d9ff;
+      color: #1a1a2e;
+    }
+    
+    .btn-primary:hover {
+      background: #00b8d9;
+    }
+    
+    .btn-secondary {
+      background: #333;
+      color: #eee;
+    }
+    
+    .btn-secondary:hover {
+      background: #444;
+    }
+    
+    .logs-section {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    
+    .logs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    
+    .logs-table th,
+    .logs-table td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #333;
+    }
+    
+    .logs-table th {
+      color: #888;
+      font-weight: 500;
+      font-size: 13px;
+    }
+    
+    .logs-table td {
+      font-size: 14px;
+    }
+    
+    .log-status-success {
+      color: #4ade80;
+    }
+    
+    .log-status-error {
+      color: #ef4444;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🌐 Web2API Desktop</h1>
+      <div class="status-badge">
+        <span class="status-dot" id="apiStatusDot"></span>
+        <span id="apiStatusText">API Server Running</span>
+      </div>
+    </header>
+
+    <section>
+      <h2 class="section-title">Available Models</h2>
+      <div class="grid" id="modelsGrid">
+        <!-- Models will be populated by JavaScript -->
+      </div>
+    </section>
+
+    <section class="api-key-section">
+      <h2 class="section-title">API Key Management</h2>
+      <p style="color: #888; font-size: 14px;">Use this key to authenticate API requests</p>
+      <div class="api-key-display">
+        <input type="text" class="api-key-input" id="apiKeyInput" value="sk-web2api-xxxxxxxxxxxxxxxxxxxxxxxx" readonly />
+        <button class="btn btn-primary" onclick="copyApiKey()">Copy</button>
+        <button class="btn btn-secondary" onclick="regenerateApiKey()">Regenerate</button>
+      </div>
+    </section>
+
+    <section class="logs-section">
+      <h2 class="section-title">Recent Call Logs</h2>
+      <table class="logs-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Model</th>
+            <th>Protocol</th>
+            <th>Status</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody id="logsTableBody">
+          <tr>
+            <td colspan="5" class="empty-state">No calls yet</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    const models = [
+      { id: 'chatgpt', name: 'ChatGPT', type: 'web', provider: 'openai' },
+      { id: 'claude-web', name: 'Claude Web', type: 'web', provider: 'anthropic' },
+      { id: 'claude-code', name: 'Claude Code CLI', type: 'cli', provider: 'anthropic' },
+      { id: 'deepseek', name: 'DeepSeek', type: 'web', provider: 'deepseek' },
+      { id: 'qwen', name: '通义千问', type: 'web', provider: 'alibaba' },
+      { id: 'glm', name: '智谱清言', type: 'web', provider: 'zhipu' },
+      { id: 'kimi', name: 'Kimi', type: 'web', provider: 'moonshot' },
+      { id: 'doubao', name: '豆包', type: 'web', provider: 'bytedance' },
+      { id: 'yuanbao', name: '腾讯元宝', type: 'web', provider: 'tencent' },
+      { id: 'yiyan', name: '文心一言', type: 'web', provider: 'baidu' },
+      { id: 'xinghuo', name: '讯飞星火', type: 'web', provider: 'iflytek' },
+      { id: 'hailuo', name: '海螺 AI', type: 'web', provider: 'minimax' },
+      { id: 'coze', name: 'Coze', type: 'web', provider: 'bytedance' },
+      { id: 'metaso', name: '秘塔 AI', type: 'web', provider: 'metaso' },
+      { id: 'tiangong', name: '天工 AI', type: 'web', provider: 'kunlun' },
+      { id: 'wxiaobai', name: '问小白', type: 'web', provider: 'wxiaobai' },
+      { id: 'nano', name: '纳米 AI', type: 'web', provider: 'tianrang' },
+      { id: 'boai', name: '波尔 AI', type: 'web', provider: 'boai' }
+    ];
+
+    function renderModels() {
+      const grid = document.getElementById('modelsGrid');
+      grid.innerHTML = models.map(model => `
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">${model.name}</span>
+            <span class="model-type">${model.type.toUpperCase()}</span>
+          </div>
+          <div class="card-status available">
+            <span class="status-dot"></span>
+            <span>Available</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function copyApiKey() {
+      const input = document.getElementById('apiKeyInput');
+      input.select();
+      document.execCommand('copy');
+      alert('API key copied to clipboard!');
+    }
+
+    function regenerateApiKey() {
+      if (confirm('Are you sure you want to generate a new API key? The old key will be revoked.')) {
+        // In production, this would call the backend API
+        const newKey = 'sk-web2api-' + Math.random().toString(36).substr(2, 24);
+        document.getElementById('apiKeyInput').value = newKey;
+        alert('New API key generated!');
+      }
+    }
+
+    function updateApiStatus(running) {
+      const dot = document.getElementById('apiStatusDot');
+      const text = document.getElementById('apiStatusText');
+      
+      if (running) {
+        dot.classList.remove('inactive');
+        text.textContent = 'API Server Running';
+      } else {
+        dot.classList.add('inactive');
+        text.textContent = 'API Server Stopped';
+      }
+    }
+
+    // Listen for IPC messages from Electron
+    if (window.electronAPI) {
+      window.electronAPI.onApiStatusChanged((running) => {
+        updateApiStatus(running);
+      });
+    }
+
+    // Initialize
+    renderModels();
+  </script>
+</body>
+</html>

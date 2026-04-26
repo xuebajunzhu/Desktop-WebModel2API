@@ -1,0 +1,21 @@
+name: kimi
+type: web
+base_url: https://kimi.moonshot.cn
+login_detection: ".user-info"
+input_selector: "#inputbox"
+send_button: "button[aria-label='发送']"
+response_container: ".reply-item:last-child .content"
+stream_detection: intercept_sse
+pre_actions:
+  - clear_input
+features:
+  - text
+  - code
+  - file_upload
+  - long_context
+  - web_search
+notes: |
+  - Requires Moonshot AI account login
+  - Specialized in ultra-long context (up to 200K tokens)
+  - Supports various file formats for upload
+  - Response may contain card UI elements to filter

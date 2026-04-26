@@ -1,0 +1,22 @@
+name: qwen
+type: web
+base_url: https://tongyi.aliyun.com/qianwen
+login_detection: ".user-info"
+input_selector: "textarea#input-box"
+send_button: "button.send-btn"
+response_container: ".conversation-item:last-child .assistant-content"
+stream_detection: intercept_sse
+pre_actions:
+  - clear_input
+features:
+  - text
+  - code
+  - file_upload
+  - image_analysis
+  - document_analysis
+  - web_search
+notes: |
+  - Requires Alibaba account login
+  - Supports multi-modal inputs (images, files)
+  - Document analysis feature for PDFs and Office files
+  - May contain citation cards in responses
