@@ -1,0 +1,20 @@
+name: claude-web
+type: web
+base_url: https://claude.ai
+login_detection: "[data-testid='user-avatar']"
+input_selector: "div.ProseMirror"
+send_button: "button[aria-label*='Send']"
+response_container: "article:last-of-type"
+stream_detection: intercept_sse
+pre_actions:
+  - focus_input
+features:
+  - text
+  - code
+  - file_upload
+  - image_analysis
+  - long_context
+notes: |
+  - Requires valid Anthropic account login
+  - Supports Claude 3 family models
+  - Session expires periodically, auto-refresh recommended

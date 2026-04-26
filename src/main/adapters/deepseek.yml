@@ -1,0 +1,22 @@
+name: deepseek
+type: web
+base_url: https://chat.deepseek.com
+login_detection: ".user-profile"
+input_selector: "#chat-input"
+send_button: "button.send-btn"
+response_container: ".message-assistant:last-of-type"
+stream_detection: intercept_sse
+pre_actions:
+  - clear_input
+features:
+  - text
+  - code
+  - file_upload
+  - image_analysis
+  - web_search
+  - deep_thinking
+notes: |
+  - Requires DeepSeek account login
+  - Supports file uploads (images, PDFs, documents)
+  - Deep thinking mode splits response into thought + answer
+  - Web search feature can be toggled
