@@ -7,6 +7,8 @@ import { convertFromOpenAI, convertToOpenAI } from './converters/openai';
 import { convertFromAnthropic, convertToAnthropic, convertToAnthropicStream } from './converters/anthropic';
 import { validateApiKey } from './storage/api-keys';
 import { logCall } from './storage/call-logs';
+import { ComparisonEngine, ComparisonRequest } from './comparison-engine';
+import { CollaborationEngine, DebateRequest, CollaborationRequest } from './collaboration-engine';
 
 const app = express();
 const PORT = process.env.WEB2API_PORT || 8899;
@@ -48,6 +50,8 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
 const taskScheduler = new TaskScheduler();
 const browserPool = new BrowserPool();
 const cliManager = new CliManager();
+const comparisonEngine = new ComparisonEngine(taskScheduler, browserPool, cliManager);
+const collaborationEngine = new CollaborationEngine(taskScheduler, browserPool, cliManager);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -257,6 +261,370 @@ app.post('/v1/messages', authMiddleware, async (req, res) => {
     });
   }
 });
+
+// Multi-model comparison endpoint
+app.post('/v1/compare', authMiddleware, async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const compareRequest: ComparisonRequest = req.body;
+    
+    // Validate request
+    if (!compareRequest.prompt || !compareRequest.models || compareRequest.models.length === 0) {
+      return res.status(400).json({ 
+        error: { 
+          message: 'Missing required fields: prompt and models array', 
+          type: 'invalid_request_error' 
+        } 
+      });
+    }
+    
+    if (compareRequest.models.length > 10) {
+      return res.status(400).json({ 
+        error: { 
+          message: 'Maximum 10 models allowed per comparison', 
+          type: 'invalid_request_error' 
+        } 
+      });
+    }
+    
+    // Run comparison
+    const result = await comparisonEngine.runComparison(compareRequest);
+    
+    res.json({
+      session: result.session,
+      results: result.results,
+      metadata: {
+        total_models: compareRequest.models.length,
+        successful: result.results.filter(r => r.status === 'success').length,
+        failed: result.results.filter(r => r.status !== 'success').length,
+        total_duration_ms: Date.now() - startTime
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Get comparison session details
+app.get('/v1/compare/:sessionId', authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await comparisonEngine.getSession(sessionId);
+    
+    if (!session) {
+      return res.status(404).json({ error: { message: 'Session not found', type: 'not_found_error' } });
+    }
+    
+    const results = await comparisonEngine.getSessionResults(sessionId);
+    
+    res.json({ session, results });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// List comparison sessions
+app.get('/v1/compare', authMiddleware, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    
+    const sessions = await comparisonEngine.listSessions(limit, offset);
+    
+    res.json({ sessions, pagination: { limit, offset } });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Delete comparison session
+app.delete('/v1/compare/:sessionId', authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const deleted = await comparisonEngine.deleteSession(sessionId);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: { message: 'Session not found', type: 'not_found_error' } });
+    }
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// ==================== 多模型辩论 API ====================
+
+// Start a multi-model debate
+app.post('/v1/debate', authMiddleware, async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const debateRequest: DebateRequest = req.body;
+    
+    // Validate request
+    if (!debateRequest.topic || !debateRequest.models || debateRequest.models.length < 2) {
+      return res.status(400).json({ 
+        error: { 
+          message: 'At least 2 models required for debate', 
+          type: 'invalid_request_error' 
+        } 
+      });
+    }
+    
+    if (!debateRequest.positions || Object.keys(debateRequest.positions).length < 2) {
+      return res.status(400).json({ 
+        error: { 
+          message: 'At least 2 models must have assigned positions', 
+          type: 'invalid_request_error' 
+        } 
+      });
+    }
+    
+    // Start debate
+    const result = await collaborationEngine.startDebate(debateRequest);
+    
+    res.json({
+      session: result.session,
+      rounds: result.rounds,
+      summary: result.summary,
+      metadata: {
+        total_rounds: result.session.rounds,
+        total_arguments: result.rounds.reduce((sum, r) => sum + r.arguments.length, 0),
+        total_duration_ms: Date.now() - startTime
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Get debate session details
+app.get('/v1/debate/:sessionId', authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await collaborationEngine.getDebateSession(sessionId);
+    
+    if (!session) {
+      return res.status(404).json({ error: { message: 'Session not found', type: 'not_found_error' } });
+    }
+    
+    const arguments = await collaborationEngine.getDebateArguments(sessionId);
+    
+    // Group arguments by round
+    const roundsMap = new Map<number, typeof arguments>();
+    arguments.forEach(arg => {
+      // Extract round number from roundId (format: round-uuid)
+      const round = await getRoundNumber(arg.roundId);
+      if (!roundsMap.has(round)) {
+        roundsMap.set(round, []);
+      }
+      roundsMap.get(round)!.push(arg);
+    });
+    
+    const rounds = Array.from(roundsMap.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([roundNumber, args]) => ({
+        roundNumber,
+        arguments: args
+      }));
+    
+    res.json({ session, rounds });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// List debate sessions
+app.get('/v1/debate', authMiddleware, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    
+    const sessions = await collaborationEngine.listDebateSessions(limit, offset);
+    
+    res.json({ sessions, pagination: { limit, offset } });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Delete debate session
+app.delete('/v1/debate/:sessionId', authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const deleted = await collaborationEngine.deleteDebateSession(sessionId);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: { message: 'Session not found', type: 'not_found_error' } });
+    }
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// ==================== 多模型协作 API ====================
+
+// Start a multi-model collaboration task
+app.post('/v1/collaborate', authMiddleware, async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const collabRequest: CollaborationRequest = req.body;
+    
+    // Validate request
+    if (!collabRequest.goal || !collabRequest.models || collabRequest.models.length < 1) {
+      return res.status(400).json({ 
+        error: { 
+          message: 'At least 1 model required for collaboration', 
+          type: 'invalid_request_error' 
+        } 
+      });
+    }
+    
+    if (!['sequential', 'parallel', 'voting'].includes(collabRequest.workflow)) {
+      return res.status(400).json({ 
+        error: { 
+          message: 'Workflow must be one of: sequential, parallel, voting', 
+          type: 'invalid_request_error' 
+        } 
+      });
+    }
+    
+    // Start collaboration
+    const result = await collaborationEngine.startCollaboration(collabRequest);
+    
+    res.json({
+      task: result.task,
+      steps: result.steps,
+      finalResult: result.finalResult,
+      metadata: {
+        total_steps: result.steps.length,
+        total_outputs: result.steps.reduce((sum, s) => sum + s.outputs.length, 0),
+        total_duration_ms: Date.now() - startTime
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Get collaboration task details
+app.get('/v1/collaborate/:taskId', authMiddleware, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const task = await collaborationEngine.getCollaborationTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ error: { message: 'Task not found', type: 'not_found_error' } });
+    }
+    
+    const steps = await collaborationEngine.getCollaborationSteps(taskId);
+    
+    res.json({ task, steps });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// List collaboration tasks
+app.get('/v1/collaborate', authMiddleware, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    
+    const tasks = await collaborationEngine.listCollaborationTasks(limit, offset);
+    
+    res.json({ tasks, pagination: { limit, offset } });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Delete collaboration task
+app.delete('/v1/collaborate/:taskId', authMiddleware, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const deleted = await collaborationEngine.deleteCollaborationTask(taskId);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: { message: 'Task not found', type: 'not_found_error' } });
+    }
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message || 'Internal server error',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Helper function to extract round number from roundId
+async function getRoundNumber(roundId: string): Promise<number> {
+  // This is a simplified version - in production you'd query the database
+  return 1;
+}
 
 let server: any = null;
 
