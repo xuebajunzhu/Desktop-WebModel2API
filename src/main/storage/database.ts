@@ -67,6 +67,117 @@ export function initDatabase(): void {
       selectors_json TEXT,
       created_at INTEGER
     );
+
+    -- Comparison sessions for multi-model comparison
+    CREATE TABLE IF NOT EXISTS comparison_sessions (
+      id TEXT PRIMARY KEY,
+      prompt TEXT NOT NULL,
+      models_json TEXT NOT NULL,
+      system_prompt TEXT,
+      temperature REAL,
+      max_tokens INTEGER,
+      status TEXT CHECK(status IN ('running', 'completed', 'failed')) DEFAULT 'running',
+      created_at INTEGER,
+      completed_at INTEGER,
+      error_message TEXT
+    );
+
+    -- Individual comparison results within a session
+    CREATE TABLE IF NOT EXISTS comparison_results (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      content TEXT,
+      finish_reason TEXT,
+      usage_json TEXT,
+      cost_usd REAL,
+      duration_ms INTEGER,
+      status TEXT CHECK(status IN ('success', 'error', 'timeout')) DEFAULT 'success',
+      error_message TEXT,
+      created_at INTEGER,
+      FOREIGN KEY (session_id) REFERENCES comparison_sessions(id) ON DELETE CASCADE
+    );
+
+    -- Debate sessions for multi-model debates
+    CREATE TABLE IF NOT EXISTS debate_sessions (
+      id TEXT PRIMARY KEY,
+      topic TEXT NOT NULL,
+      models_json TEXT NOT NULL,
+      positions_json TEXT NOT NULL,
+      rounds INTEGER DEFAULT 3,
+      system_prompt TEXT,
+      temperature REAL,
+      max_tokens INTEGER,
+      status TEXT CHECK(status IN ('running', 'completed', 'failed')) DEFAULT 'running',
+      current_round INTEGER DEFAULT 0,
+      created_at INTEGER,
+      completed_at INTEGER,
+      error_message TEXT
+    );
+
+    -- Debate rounds within a session
+    CREATE TABLE IF NOT EXISTS debate_rounds (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      round_number INTEGER NOT NULL,
+      created_at INTEGER,
+      FOREIGN KEY (session_id) REFERENCES debate_sessions(id) ON DELETE CASCADE
+    );
+
+    -- Individual arguments within a debate round
+    CREATE TABLE IF NOT EXISTS debate_arguments (
+      id TEXT PRIMARY KEY,
+      round_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      position TEXT NOT NULL,
+      content TEXT,
+      duration_ms INTEGER,
+      status TEXT CHECK(status IN ('success', 'error', 'timeout')) DEFAULT 'success',
+      error_message TEXT,
+      created_at INTEGER,
+      FOREIGN KEY (round_id) REFERENCES debate_rounds(id) ON DELETE CASCADE
+    );
+
+    -- Collaboration tasks for multi-model collaboration
+    CREATE TABLE IF NOT EXISTS collaboration_tasks (
+      id TEXT PRIMARY KEY,
+      goal TEXT NOT NULL,
+      models_json TEXT NOT NULL,
+      workflow TEXT CHECK(workflow IN ('sequential', 'parallel', 'voting')) NOT NULL,
+      steps_json TEXT,
+      status TEXT CHECK(status IN ('running', 'completed', 'failed')) DEFAULT 'running',
+      current_step INTEGER DEFAULT 0,
+      result TEXT,
+      created_at INTEGER,
+      completed_at INTEGER,
+      error_message TEXT
+    );
+
+    -- Steps within a collaboration task
+    CREATE TABLE IF NOT EXISTS collaboration_steps (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      step_number INTEGER NOT NULL,
+      description TEXT NOT NULL,
+      assigned_models TEXT,
+      status TEXT CHECK(status IN ('pending', 'running', 'completed', 'failed')) DEFAULT 'pending',
+      created_at INTEGER,
+      completed_at INTEGER,
+      FOREIGN KEY (task_id) REFERENCES collaboration_tasks(id) ON DELETE CASCADE
+    );
+
+    -- Outputs from individual models within a step
+    CREATE TABLE IF NOT EXISTS collaboration_outputs (
+      id TEXT PRIMARY KEY,
+      step_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      content TEXT,
+      duration_ms INTEGER,
+      status TEXT CHECK(status IN ('success', 'error', 'timeout')) DEFAULT 'success',
+      error_message TEXT,
+      created_at INTEGER,
+      FOREIGN KEY (step_id) REFERENCES collaboration_steps(id) ON DELETE CASCADE
+    );
   `);
 
   // Insert default model configs if not exists
